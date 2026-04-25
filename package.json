@@ -13,7 +13,6 @@
     "@clerk/nextjs": "^7.2.5",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.22.0",
-    "@trigger.dev/nextjs": "3.3.12",
     "@trigger.dev/sdk": "^4.4.4",
     "@xyflow/react": "^12.10.2",
     "dotenv": "^17.4.2",
