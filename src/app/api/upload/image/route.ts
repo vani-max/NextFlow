@@ -64,8 +64,7 @@ export async function POST(req: NextRequest) {
     console.log('Uploads array:', JSON.stringify(uploadedFiles).slice(0, 300))
 
     const uploaded = uploadedFiles[0] || 
-      Object.values(current.results || {})?.[0]?.[0]
-
+(Object.values(current.results || {}) as any[])?.[0]?.[0]
     if (!uploaded) {
       return NextResponse.json({ error: 'No file in results' }, { status: 500 })
     }
