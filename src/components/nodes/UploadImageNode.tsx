@@ -63,7 +63,7 @@ const UploadImageNode = ({ id, data }: NodeProps<Node<UploadImageNodeData>>) => 
         if (assembly.error) throw new Error(assembly.error)
       }
 
-      const uploaded = assembly.uploads?.[0] || Object.values(assembly.results || {})?.[0]?.[0]
+         const uploaded = assembly.uploads?.[0] || (Object.values(assembly.results || {}) as any[])?.[0]?.[0]
       if (!uploaded) throw new Error('Upload failed')
 
       updateNodeData(id, { imageUrl: uploaded.ssl_url || uploaded.url, fileName: file.name })
