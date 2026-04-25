@@ -1,17 +1,11 @@
 'use client'
 
 import React, { memo, useRef, useState } from 'react'
-import { Handle, Position, useReactFlow, NodeProps, Node } from '@xyflow/react'
+import { Handle, Position, useReactFlow, NodeProps } from '@xyflow/react'
 import { X, Upload, Loader2 } from 'lucide-react'
 import { useWorkflowStore } from '@/store/workflowStore'
 
-interface UploadVideoNodeData extends Record<string, unknown> {
-  videoUrl?: string
-  fileName?: string
-  status?: string
-}
-
-const UploadVideoNode = ({ id, data }: NodeProps<Node<UploadVideoNodeData>>) => {
+const UploadVideoNode = ({ id, data }: NodeProps) => {
   const { setNodes } = useReactFlow()
   const { updateNodeData } = useWorkflowStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -90,8 +84,8 @@ const UploadVideoNode = ({ id, data }: NodeProps<Node<UploadVideoNodeData>>) => 
 
   const statusClass =
     data.status === 'running' ? 'node-running' :
-    data.status === 'error' ? 'node-error' :
-    data.status === 'success' ? 'node-success' : ''
+      data.status === 'error' ? 'node-error' :
+        data.status === 'success' ? 'node-success' : ''
 
   return (
     <div className={`group min-w-[280px] bg-[#1c1c1e] border border-[#2a2a2e] rounded-2xl shadow-xl transition-all ${statusClass}`}>
@@ -109,14 +103,14 @@ const UploadVideoNode = ({ id, data }: NodeProps<Node<UploadVideoNodeData>>) => 
       {/* Body */}
       <div className="p-3">
         <input type="file" ref={fileInputRef} onChange={onFileChange} accept="video/mp4,video/quicktime,video/webm,video/x-m4v" className="hidden" />
-        
+
         {isUploading ? (
           <div className="border border-[#2a2a2e] bg-[#131315] rounded-xl p-6 flex flex-col items-center justify-center gap-2">
             <Loader2 className="w-5 h-5 text-[#7c3aed] animate-spin" />
             <p className="text-[11px] text-[#7c3aed] font-medium">Uploading...</p>
           </div>
         ) : !data.videoUrl ? (
-          <div 
+          <div
             onClick={triggerUpload}
             className="border border-[#2a2a2e] bg-[#131315] hover:bg-[#1a1a1c] hover:border-[#7c3aed] rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all group/upload"
           >
