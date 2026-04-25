@@ -20,8 +20,7 @@ export default function TopToolbar() {
   const handleLoadSample = () => {
     setNodes(sampleWorkflow.nodes)
     setEdges(sampleWorkflow.edges)
-    if (sampleWorkflow.name) setWorkflowName(sampleWorkflow.name)
-  }
+setWorkflowName('NextFlow Sample Workflow')  }
 
   // Auto-load workflow on mount
   useEffect(() => {
