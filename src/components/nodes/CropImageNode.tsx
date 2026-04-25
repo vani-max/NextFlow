@@ -1,11 +1,21 @@
 'use client'
 
 import React, { memo, useState } from 'react'
-import { Handle, Position, useReactFlow, useHandleConnections, NodeProps } from '@xyflow/react'
+import { Handle, Position, useReactFlow, useHandleConnections, NodeProps, Node } from '@xyflow/react'
 import { X, Play, Loader2 } from 'lucide-react'
 import { useWorkflowStore } from '@/store/workflowStore'
 
-const CropImageNode = ({ id, data }: NodeProps) => {
+interface CropImageNodeData extends Record<string, unknown> {
+  imageUrl?: string
+  outputImageUrl?: string
+  status?: string
+  x_percent?: number
+  y_percent?: number
+  width_percent?: number
+  height_percent?: number
+}
+
+const CropImageNode = ({ id, data }: NodeProps<Node<CropImageNodeData>>) => {
   const { setNodes, getNodes, getEdges } = useReactFlow()
   const { updateNodeData } = useWorkflowStore()
   const [isRunning, setIsRunning] = useState(false)
@@ -125,7 +135,7 @@ const CropImageNode = ({ id, data }: NodeProps) => {
       <div className="p-3 space-y-4">
         <div className="flex items-center gap-3 relative py-0.5">
           <Handle type="target" position={Position.Left} id="image_url" style={{ background: '#10b981', width: 8, height: 8, border: 'none' }} className="!-left-[17px]" />
-          <span className={`text-[11px] ${imageConnected ? 'text-[#888]' : 'text-[#555]'} font-medium`}>image</span>
+          <span className={`text-[11px] ${(imageConnected as boolean) ? 'text-[#888]' : 'text-[#555]'} font-medium`}>image</span>
         </div>
 
         <div className="space-y-2">
@@ -133,7 +143,7 @@ const CropImageNode = ({ id, data }: NodeProps) => {
             <div key={field.id} className="flex items-center justify-between gap-3 relative py-0.5">
               <div className="flex items-center gap-3">
                 <Handle type="target" position={Position.Left} id={field.id} style={{ background: '#3b82f6', width: 8, height: 8, border: 'none' }} className="!-left-[17px]" />
-                <span className={`text-[11px] ${field.connected ? 'text-[#888]' : 'text-[#555]'}`}>{field.label}</span>
+                <span className={`text-[11px] ${(field.connected as boolean) ? 'text-[#888]' : 'text-[#555]'}`}>{field.label}</span>
               </div>
               <input
                 type="number"
@@ -142,7 +152,7 @@ const CropImageNode = ({ id, data }: NodeProps) => {
                 max={100}
                 value={(data[field.id] as number) !== undefined ? (data[field.id] as number) : field.default}
                 onChange={(e) => onValueChange(field.id, e.target.value)}
-                className={`w-14 bg-[#131315] border ${field.connected ? 'border-[#222] text-[#333]' : 'border-[#2a2a2e] text-zinc-300 focus:border-[#7c3aed]'} rounded px-1.5 py-1 text-[11px] focus:outline-none transition-all text-right`}
+                className={`w-14 bg-[#131315] border ${(field.connected as boolean) ? 'border-[#222] text-[#333]' : 'border-[#2a2a2e] text-zinc-300 focus:border-[#7c3aed]'} rounded px-1.5 py-1 text-[11px] focus:outline-none transition-all text-right`}
               />
             </div>
           ))}
@@ -164,7 +174,7 @@ const CropImageNode = ({ id, data }: NodeProps) => {
           )}
         </button>
 
-        {data.outputImageUrl && (
+        {(data.outputImageUrl as string) && (
           <div className="pt-3 border-t border-[#2a2a2e]">
             <p className="text-[10px] font-bold text-[#555] uppercase tracking-widest mb-2">Output</p>
             <div className="rounded-xl overflow-hidden border border-[#2a2a2e] bg-[#131315]">

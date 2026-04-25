@@ -1,11 +1,18 @@
 'use client'
 
 import React, { memo, useState } from 'react'
-import { Handle, Position, useReactFlow, useHandleConnections, NodeProps } from '@xyflow/react'
+import { Handle, Position, useReactFlow, useHandleConnections, NodeProps, Node } from '@xyflow/react'
 import { X, Play, Loader2 } from 'lucide-react'
 import { useWorkflowStore } from '@/store/workflowStore'
 
-const ExtractFrameNode = ({ id, data }: NodeProps) => {
+interface ExtractFrameNodeData extends Record<string, unknown> {
+  videoUrl?: string
+  outputImageUrl?: string
+  status?: string
+  timestamp?: string
+}
+
+const ExtractFrameNode = ({ id, data }: NodeProps<Node<ExtractFrameNodeData>>) => {
   const { setNodes, getNodes, getEdges } = useReactFlow()
   const { updateNodeData } = useWorkflowStore()
   const [isRunning, setIsRunning] = useState(false)
@@ -112,14 +119,14 @@ const ExtractFrameNode = ({ id, data }: NodeProps) => {
       <div className="p-3 space-y-4">
         <div className="flex items-center gap-3 relative py-0.5">
           <Handle type="target" position={Position.Left} id="video_url" style={{ background: '#f59e0b', width: 8, height: 8, border: 'none' }} className="!-left-[17px]" />
-          <span className={`text-[11px] ${videoConnected ? 'text-[#888]' : 'text-[#555]'} font-medium`}>video</span>
+          <span className={`text-[11px] ${(videoConnected as boolean) ? 'text-[#888]' : 'text-[#555]'} font-medium`}>video</span>
         </div>
 
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-3 relative py-0.5">
             <div className="flex items-center gap-3">
               <Handle type="target" position={Position.Left} id="timestamp" style={{ background: '#3b82f6', width: 8, height: 8, border: 'none' }} className="!-left-[17px]" />
-              <span className={`text-[11px] ${timestampConnected ? 'text-[#888]' : 'text-[#555]'}`}>timestamp</span>
+              <span className={`text-[11px] ${(timestampConnected as boolean) ? 'text-[#888]' : 'text-[#555]'}`}>timestamp</span>
             </div>
             <input
               type="text"
@@ -127,7 +134,7 @@ const ExtractFrameNode = ({ id, data }: NodeProps) => {
               value={(data.timestamp as string) || ''}
               onChange={onValueChange}
               placeholder="0s"
-              className={`w-20 bg-[#131315] border ${timestampConnected ? 'border-[#222] text-[#333]' : 'border-[#2a2a2e] text-zinc-300 focus:border-[#7c3aed]'} rounded px-1.5 py-1 text-[11px] focus:outline-none transition-all text-right`}
+              className={`w-20 bg-[#131315] border ${(timestampConnected as boolean) ? 'border-[#222] text-[#333]' : 'border-[#2a2a2e] text-zinc-300 focus:border-[#7c3aed]'} rounded px-1.5 py-1 text-[11px] focus:outline-none transition-all text-right`}
             />
           </div>
           <p className="text-[9px] text-[#444] italic pl-5">Enter seconds (5) or percentage (50%)</p>
@@ -149,7 +156,7 @@ const ExtractFrameNode = ({ id, data }: NodeProps) => {
           )}
         </button>
 
-        {data.outputImageUrl && (
+        {(data.outputImageUrl as string) && (
           <div className="pt-3 border-t border-[#2a2a2e]">
             <p className="text-[10px] font-bold text-[#555] uppercase tracking-widest mb-2">Extracted Frame</p>
             <div className="rounded-xl overflow-hidden border border-[#2a2a2e] bg-[#131315]">

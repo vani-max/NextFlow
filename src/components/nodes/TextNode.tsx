@@ -1,10 +1,15 @@
 'use client'
 
 import React, { memo } from 'react'
-import { Handle, Position, useReactFlow, NodeProps } from '@xyflow/react'
+import { Handle, Position, useReactFlow, NodeProps, Node } from '@xyflow/react'
 import { X } from 'lucide-react'
 
-const TextNode = ({ id, data }: NodeProps) => {
+interface TextNodeData extends Record<string, unknown> {
+  text?: string
+  status?: string
+}
+
+const TextNode = ({ id, data }: NodeProps<Node<TextNodeData>>) => {
   const { setNodes, updateNodeData } = useReactFlow()
 
   const onChange = (evt: React.ChangeEvent<HTMLTextAreaElement>) => {

@@ -1,11 +1,17 @@
 'use client'
 
 import React, { memo, useRef, useState } from 'react'
-import { Handle, Position, useReactFlow, NodeProps } from '@xyflow/react'
+import { Handle, Position, useReactFlow, NodeProps, Node } from '@xyflow/react'
 import { X, Upload, Loader2 } from 'lucide-react'
 import { useWorkflowStore } from '@/store/workflowStore'
 
-const UploadVideoNode = ({ id, data }: NodeProps) => {
+interface UploadVideoNodeData extends Record<string, unknown> {
+  videoUrl?: string
+  fileName?: string
+  status?: string
+}
+
+const UploadVideoNode = ({ id, data }: NodeProps<Node<UploadVideoNodeData>>) => {
   const { setNodes } = useReactFlow()
   const { updateNodeData } = useWorkflowStore()
   const fileInputRef = useRef<HTMLInputElement>(null)

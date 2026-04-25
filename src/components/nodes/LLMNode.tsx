@@ -61,7 +61,7 @@ const LLMNode = ({ id, data }: NodeProps<Node<LLMNodeData>>) => {
       const sourceNode = nodes.find(n => n.id === edge.source)
       if (!sourceNode) return null
       // Check common data fields across different node types
-      return sourceNode.data?.text || sourceNode.data?.imageUrl || sourceNode.data?.videoUrl || null
+      return (sourceNode.data as any)?.text || (sourceNode.data as any)?.imageUrl || (sourceNode.data as any)?.videoUrl || null
     }
 
     const getConnectedImages = () => {
@@ -70,7 +70,7 @@ const LLMNode = ({ id, data }: NodeProps<Node<LLMNodeData>>) => {
       )
       return imageEdges.map(edge => {
         const sourceNode = nodes.find(n => n.id === edge.source)
-        return (sourceNode?.data?.imageUrl as string) || null
+        return ((sourceNode?.data as any)?.imageUrl as string) || null
       }).filter(Boolean) as string[]
     }
 
@@ -111,20 +111,20 @@ const LLMNode = ({ id, data }: NodeProps<Node<LLMNodeData>>) => {
           const { status, output, error } = await statusRes.json()
 
           if (status === 'completed') {
-            clearInterval(pollIntervalRef.current!)
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
             pollIntervalRef.current = null
             isRunningRef.current = false
             setIsRunning(false)
             updateNodeData(id, { status: 'success', output })
           } else if (status === 'failed') {
-            clearInterval(pollIntervalRef.current!)
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
             pollIntervalRef.current = null
             isRunningRef.current = false
             setIsRunning(false)
             updateNodeData(id, { status: 'error', output: error || 'Task failed' })
           }
         } catch (e) {
-          clearInterval(pollIntervalRef.current!)
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
           pollIntervalRef.current = null
           isRunningRef.current = false
           setIsRunning(false)
@@ -168,7 +168,7 @@ const LLMNode = ({ id, data }: NodeProps<Node<LLMNodeData>>) => {
         <div>
           <label className="text-[10px] font-bold text-[#555] uppercase tracking-widest block mb-1.5">Model</label>
           <select 
-            value={data.model || 'llama-3.3-70b-versatile'} 
+            value={(data.model as string) || 'llama-3.3-70b-versatile'} 
             onChange={onModelChange}
             className="w-full bg-[#131315] border border-[#2a2a2e] rounded-lg px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#7c3aed] transition-colors appearance-none cursor-pointer"
           >
@@ -211,11 +211,11 @@ const LLMNode = ({ id, data }: NodeProps<Node<LLMNodeData>>) => {
           )}
         </button>
 
-        {data.output && (
+        {(data.output as string) && (
           <div className="pt-3 border-t border-[#2a2a2e] space-y-2">
             <label className="text-[10px] font-bold text-[#555] uppercase tracking-widest block">Output</label>
             <div className="bg-[#131315] border border-[#2a2a2e] rounded-lg p-2.5 max-h-[150px] overflow-y-auto">
-              <p className="text-[12px] text-zinc-400 whitespace-pre-wrap leading-relaxed">{data.output}</p>
+              <p className="text-[12px] text-zinc-400 whitespace-pre-wrap leading-relaxed">{(data.output as string)}</p>
             </div>
           </div>
         )}
