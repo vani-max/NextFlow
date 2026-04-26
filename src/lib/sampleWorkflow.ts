@@ -1,6 +1,6 @@
 import { Node, Edge } from '@xyflow/react'
 
-export const sampleWorkflow: { nodes: Node[], edges: Edge[] } = {
+export const sampleWorkflow: { name: string, nodes: Node[], edges: Edge[] } = {
  name: 'NextFlow Sample Workflow',
   nodes: [
     // Branch A - Image Processing
