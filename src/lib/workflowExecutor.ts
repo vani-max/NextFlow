@@ -53,17 +53,17 @@ export function getExecutionGroups(nodes: Node[], edges: Edge[]): string[][] {
 
 // Get the output value from a node based on its type
 export function getNodeOutput(node: Node): string | null {
+  const data = node.data as any
   switch (node.type) {
-    case 'text': return node.data?.text || null
-    case 'uploadImage': return node.data?.imageUrl || null
-    case 'uploadVideo': return node.data?.videoUrl || null
-    case 'llm': return node.data?.output || null
-    case 'cropImage': return node.data?.outputImageUrl || null
-    case 'extractFrame': return node.data?.outputImageUrl || null
+    case 'text': return data?.text || null
+    case 'uploadImage': return data?.imageUrl || null
+    case 'uploadVideo': return data?.videoUrl || null
+    case 'llm': return data?.output || null
+    case 'cropImage': return data?.outputImageUrl || null
+    case 'extractFrame': return data?.outputImageUrl || null
     default: return null
   }
 }
-
 // Resolve input for a node handle from connected nodes
 export function resolveInput(
   nodeId: string,
@@ -74,10 +74,8 @@ export function resolveInput(
   const connectedEdges = edges.filter(
     e => e.target === nodeId && e.targetHandle === handleId
   )
-
   if (connectedEdges.length === 0) return null
 
-  // For images handle — return array (multiple images supported)
   if (handleId === 'images') {
     return connectedEdges.map(edge => {
       const sourceNode = nodes.find(n => n.id === edge.source)
@@ -85,7 +83,6 @@ export function resolveInput(
     }).filter(Boolean) as string[]
   }
 
-  // For single handles — return first connected value
   const sourceNode = nodes.find(n => n.id === connectedEdges[0].source)
   return sourceNode ? getNodeOutput(sourceNode) : null
 }
