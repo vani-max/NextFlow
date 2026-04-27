@@ -74,7 +74,11 @@ export default function DashboardSidebar() {
       {/* Bottom Section */}
       <div className="pt-6 border-t border-[#1a1a1a] flex flex-col gap-4">
         <div className="flex items-center gap-3 px-2">
-          <UserButton afterSignOutUrl="/" />
+         <UserButton
+  signOutOptions={{
+    redirectUrl: "/"
+  }}
+/>
           <div className="flex flex-col">
             <span className="text-xs text-white font-medium">Account</span>
             <Link href="#" className="text-[10px] text-zinc-500 hover:text-white transition-colors">
