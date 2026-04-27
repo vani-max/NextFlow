@@ -17,6 +17,7 @@ interface WorkflowStore {
   redo: () => void
   pushHistory: () => void
   setEdgeAnimation: (targetNodeId: string, animated: boolean) => void
+  reset: () => void
 }
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
@@ -92,4 +93,12 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     const next = history[historyIndex + 1]
     set({ nodes: next.nodes, edges: next.edges, historyIndex: historyIndex + 1 })
   },
+  reset: () => {
+    set({
+      nodes: [],
+      edges: [],
+      history: [],
+      historyIndex: -1
+    })
+  }
 }))

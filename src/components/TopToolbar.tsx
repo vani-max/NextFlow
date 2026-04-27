@@ -20,26 +20,8 @@ export default function TopToolbar() {
   const handleLoadSample = () => {
     setNodes(sampleWorkflow.nodes)
     setEdges(sampleWorkflow.edges)
-setWorkflowName('NextFlow Sample Workflow')  }
-
-  // Auto-load workflow on mount
-  useEffect(() => {
-    const loadWorkflow = async () => {
-      try {
-        const res = await fetch('/api/workflow/load')
-        const data = await res.json()
-        if (data.workflow) {
-          setWorkflowId(data.workflow.id)
-          setWorkflowName(data.workflow.name)
-          setNodes(data.workflow.nodes)
-          setEdges(data.workflow.edges)
-        }
-      } catch (err) {
-        console.error('Failed to load workflow:', err)
-      }
-    }
-    loadWorkflow()
-  }, [setNodes, setEdges])
+    setWorkflowName('NextFlow Sample Workflow')
+  }
 
   const handleSave = async () => {
     setIsSaving(true)

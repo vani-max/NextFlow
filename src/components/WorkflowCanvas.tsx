@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -11,6 +11,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useWorkflowStore } from '@/store/workflowStore'
+import { Loader2 } from 'lucide-react'
 
 // Import custom nodes
 import TextNode from './nodes/TextNode'
@@ -39,7 +40,12 @@ const defaultEdgeOptions = {
   },
 }
 
-export default function WorkflowCanvas() {
+interface WorkflowCanvasProps {
+  workflowId?: string
+  loadEmpty?: boolean
+}
+
+export default function WorkflowCanvas({ workflowId, loadEmpty }: WorkflowCanvasProps) {
   const {
     nodes,
     edges,
@@ -51,19 +57,45 @@ export default function WorkflowCanvas() {
     setEdges,
     undo,
     redo,
+    reset,
   } = useWorkflowStore()
+
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const loadWorkflow = async () => {
-      const res = await fetch('/api/workflow/load')
-      const { workflow } = await res.json()
-      if (workflow && workflow.nodes?.length > 0) {
-        setNodes(workflow.nodes)
-        setEdges(workflow.edges)
+      setIsLoading(true)
+      
+      if (loadEmpty) {
+        reset()
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const url = workflowId 
+          ? `/api/workflow/load?id=${workflowId}` 
+          : '/api/workflow/load'
+        
+        const res = await fetch(url)
+        const { workflow } = await res.json()
+        
+        if (workflow && workflow.nodes?.length > 0) {
+          setNodes(workflow.nodes)
+          setEdges(workflow.edges)
+        } else if (workflowId !== 'sample') {
+          // If loading a specific ID failed or is empty, clear
+          reset()
+        }
+      } catch (error) {
+        console.error('Error loading workflow:', error)
+      } finally {
+        setIsLoading(false)
       }
     }
+    
     loadWorkflow()
-  }, [setNodes, setEdges])
+  }, [workflowId, loadEmpty, setNodes, setEdges, reset])
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault()
@@ -112,6 +144,14 @@ export default function WorkflowCanvas() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [undo, redo])
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 h-full flex items-center justify-center bg-[#0d0d0d]">
+        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 h-full relative outline-none bg-[#0d0d0d]" onDrop={onDrop} onDragOver={onDragOver}>
