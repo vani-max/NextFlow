@@ -5,6 +5,8 @@ import { tasks } from '@trigger.dev/sdk/v3'
 import { llmTask } from '@/trigger/llm-task'
 import { prisma } from '@/lib/prisma'
 
+export const maxDuration = 60
+
 const schema = z.object({
   model: z.string(),
   systemPrompt: z.string().optional(),

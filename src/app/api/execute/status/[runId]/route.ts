@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { runs } from '@trigger.dev/sdk/v3'
 import { prisma } from '@/lib/prisma'
 
+export const maxDuration = 60
+
 interface TaskOutput {
   output: string
   nodeId: string

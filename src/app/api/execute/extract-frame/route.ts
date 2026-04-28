@@ -5,6 +5,8 @@ import { extractFrameTask } from '@/trigger/extract-frame-task'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
+export const maxDuration = 60
+
 const schema = z.object({
   videoUrl: z.string().url(),
   timestamp: z.string().default('0'),

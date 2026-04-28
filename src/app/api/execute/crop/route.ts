@@ -5,6 +5,8 @@ import { cropImageTask } from '@/trigger/crop-image-task'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
+export const maxDuration = 60
+
 const schema = z.object({
   imageUrl: z.string().url(),
   xPercent: z.number().min(0).max(100).default(0),

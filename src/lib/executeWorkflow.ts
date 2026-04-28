@@ -188,22 +188,19 @@ async function executeNode({
   }
 }
 
-async function pollForResult(triggerHandle: string, maxAttempts = 120): Promise<string> {
+async function pollForResult(triggerHandle: string, maxAttempts = 60): Promise<string> {
   if (!triggerHandle) throw new Error('No trigger handle provided')
   
   for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(r => setTimeout(r, 3000)) // 3 seconds between polls
+    await new Promise(r => setTimeout(r, 5000)) // increase to 5 seconds
     
     try {
       const res = await fetch(`/api/execute/status/${triggerHandle}`)
       const text = await res.text()
       if (!text || text.trim() === '') continue
-      
       const data = JSON.parse(text)
-      const { status, output } = data
-      
-      if (status === 'completed') return output
-      if (status === 'failed') throw new Error('Task failed')
+      if (data.status === 'completed') return data.output
+      if (data.status === 'failed') throw new Error('Task failed')
     } catch (e: any) {
       if (e.message === 'Task failed') throw e
       continue
