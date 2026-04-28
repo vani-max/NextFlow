@@ -10,7 +10,8 @@
     "trigger:dev": "npx trigger.dev@latest dev"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.2.5",
+    "@clerk/nextjs": "^7.2.7",
+    "@clerk/shared": "^4.8.5",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.22.0",
     "@trigger.dev/sdk": "^4.4.4",
