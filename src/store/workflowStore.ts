@@ -4,8 +4,8 @@ import { Node, Edge, addEdge, applyNodeChanges, applyEdgeChanges, OnNodesChange,
 interface WorkflowStore {
   nodes: Node[]
   edges: Edge[]
-  history: { nodes: Node[], edges: Edge[] }[]
-  historyIndex: number
+  past: { nodes: Node[], edges: Edge[] }[]
+  future: { nodes: Node[], edges: Edge[] }[]
   setNodes: (nodes: Node[]) => void
   setEdges: (edges: Edge[]) => void
   updateNodeData: (nodeId: string, data: Record<string, unknown>) => void
@@ -15,18 +15,22 @@ interface WorkflowStore {
   addNode: (node: Node) => void
   undo: () => void
   redo: () => void
-  pushHistory: () => void
   setEdgeAnimation: (targetNodeId: string, animated: boolean) => void
+  activeWorkflowId: string | null
+  setActiveWorkflowId: (id: string | null) => void
   reset: () => void
 }
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   nodes: [],
   edges: [],
-  history: [],
-  historyIndex: -1,
+  past: [],
+  future: [],
+  activeWorkflowId: null,
+
   setNodes: (nodes) => set({ nodes }),
   setEdges: (edges) => set({ edges }),
+
   updateNodeData: (nodeId, data) => {
     set({
       nodes: get().nodes.map((node) => {
@@ -37,26 +41,59 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       }),
     })
   },
+
   onNodesChange: (changes) => set({ nodes: applyNodeChanges(changes, get().nodes) }),
+
   onEdgesChange: (changes) => set({ edges: applyEdgeChanges(changes, get().edges) }),
+
   onConnect: (connection: Connection) => {
-    const newEdge: Edge = {
-      ...connection,
-      id: `edge-${Date.now()}`,
-      type: 'smoothstep',
-      animated: false,
-      style: {
-        stroke: '#3b82f6',
-        strokeWidth: 2,
-        strokeDasharray: 'none',
-      },
-    }
-    set({ edges: addEdge(newEdge, get().edges) })
+    const { nodes, edges, past } = get()
+    set({
+      past: [...past, { nodes: [...nodes], edges: [...edges] }],
+      future: [],
+      edges: addEdge({
+        ...connection,
+        id: `edge-${Date.now()}`,
+        type: 'smoothstep',
+        animated: false,
+        style: { stroke: '#3b82f6', strokeWidth: 2 },
+      }, edges),
+    })
   },
-  addNode: (node) => {
-    get().pushHistory()
-    set({ nodes: [...get().nodes, node] })
+
+  addNode: (node: Node) => {
+    const { nodes, edges, past } = get()
+    set({
+      past: [...past, { nodes: [...nodes], edges: [...edges] }],
+      future: [],
+      nodes: [...nodes, node],
+    })
   },
+
+  undo: () => {
+    const { past, nodes, edges, future } = get()
+    if (past.length === 0) return
+    const previous = past[past.length - 1]
+    set({
+      past: past.slice(0, -1),
+      future: [{ nodes: [...nodes], edges: [...edges] }, ...future],
+      nodes: previous.nodes,
+      edges: previous.edges,
+    })
+  },
+
+  redo: () => {
+    const { past, nodes, edges, future } = get()
+    if (future.length === 0) return
+    const next = future[0]
+    set({
+      past: [...past, { nodes: [...nodes], edges: [...edges] }],
+      future: future.slice(1),
+      nodes: next.nodes,
+      edges: next.edges,
+    })
+  },
+
   setEdgeAnimation: (targetNodeId: string, animated: boolean) => {
     set({
       edges: get().edges.map(edge =>
@@ -75,30 +112,15 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       )
     })
   },
-  pushHistory: () => {
-    const { nodes, edges, history, historyIndex } = get()
-    const newHistory = history.slice(0, historyIndex + 1)
-    newHistory.push({ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) })
-    set({ history: newHistory, historyIndex: newHistory.length - 1 })
-  },
-  undo: () => {
-    const { history, historyIndex } = get()
-    if (historyIndex <= 0) return
-    const prev = history[historyIndex - 1]
-    set({ nodes: prev.nodes, edges: prev.edges, historyIndex: historyIndex - 1 })
-  },
-  redo: () => {
-    const { history, historyIndex } = get()
-    if (historyIndex >= history.length - 1) return
-    const next = history[historyIndex + 1]
-    set({ nodes: next.nodes, edges: next.edges, historyIndex: historyIndex + 1 })
-  },
+
+  setActiveWorkflowId: (id: string | null) => set({ activeWorkflowId: id }),
+
   reset: () => {
     set({
       nodes: [],
       edges: [],
-      history: [],
-      historyIndex: -1
+      past: [],
+      future: [],
     })
-  }
+  },
 }))

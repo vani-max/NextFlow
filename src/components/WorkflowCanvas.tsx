@@ -1,16 +1,18 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ReactFlow,
   Background,
   Controls,
+  MiniMap,
   BackgroundVariant,
   Node,
   PanOnScrollMode,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useWorkflowStore } from '@/store/workflowStore'
+import { sampleWorkflow } from '@/lib/sampleWorkflow'
 import { Loader2 } from 'lucide-react'
 
 // Import custom nodes
@@ -58,44 +60,91 @@ export default function WorkflowCanvas({ workflowId, loadEmpty }: WorkflowCanvas
     undo,
     redo,
     reset,
+    activeWorkflowId,
+    setActiveWorkflowId,
   } = useWorkflowStore()
 
   const [isLoading, setIsLoading] = useState(true)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const loadWorkflow = async () => {
       setIsLoading(true)
-      
+
       if (loadEmpty) {
         reset()
+        setActiveWorkflowId(null)
+        setIsLoading(false)
+        return
+      }
+
+      if (!workflowId || workflowId === 'new') {
+        // Clear canvas for new workflow
+        setNodes([])
+        setEdges([])
+        setActiveWorkflowId(null)
+        setIsLoading(false)
+        return
+      }
+
+      if (workflowId === 'sample') {
+        setNodes(sampleWorkflow.nodes)
+        setEdges(sampleWorkflow.edges)
+        setActiveWorkflowId(null) // sample has no DB id
         setIsLoading(false)
         return
       }
 
       try {
-        const url = workflowId 
-          ? `/api/workflow/load?id=${workflowId}` 
-          : '/api/workflow/load'
-        
-        const res = await fetch(url)
+        const res = await fetch(`/api/workflow/load?id=${workflowId}`)
         const { workflow } = await res.json()
-        
-        if (workflow && workflow.nodes?.length > 0) {
-          setNodes(workflow.nodes)
-          setEdges(workflow.edges)
-        } else if (workflowId !== 'sample') {
-          // If loading a specific ID failed or is empty, clear
+        if (workflow) {
+          setNodes((workflow.nodes as Node[]) || [])
+          setEdges(workflow.edges || [])
+          setActiveWorkflowId(workflow.id)
+          console.log('Loaded workflow:', workflow.id, workflow.nodes?.length, 'nodes')
+        } else {
           reset()
         }
-      } catch (error) {
-        console.error('Error loading workflow:', error)
+      } catch (err) {
+        console.error('Failed to load workflow:', err)
       } finally {
         setIsLoading(false)
       }
     }
-    
+
     loadWorkflow()
-  }, [workflowId, loadEmpty, setNodes, setEdges, reset])
+  }, [workflowId])
+
+  // Auto-save whenever nodes or edges change (debounced 2s)
+  useEffect(() => {
+    if (!activeWorkflowId) return // don't auto-save new unsaved workflows
+    if (nodes.length === 0) return // don't save empty canvas
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await fetch('/api/workflow/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Untitled Workflow',
+            nodes,
+            edges,
+            workflowId: activeWorkflowId,
+          })
+        })
+        console.log('Auto-saved workflow')
+      } catch (err) {
+        console.error('Auto-save failed:', err)
+      }
+    }, 2000)
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    }
+  }, [nodes, edges, activeWorkflowId])
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault()
@@ -177,6 +226,30 @@ export default function WorkflowCanvas({ workflowId, loadEmpty }: WorkflowCanvas
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="#1f1f1f" />
         <Controls className="bg-[#111] border-[#222] fill-white" />
+        <MiniMap
+          style={{
+            background: '#0d0d0d',
+            border: '1px solid #2a2a2a',
+            borderRadius: '10px',
+            bottom: 80,
+            right: 16,
+          }}
+          maskColor="rgba(0,0,0,0.7)"
+          nodeColor={(node) => {
+            switch (node.type) {
+              case 'text': return '#3b82f6'
+              case 'uploadImage': return '#10b981'
+              case 'uploadVideo': return '#f59e0b'
+              case 'llm': return '#7c3aed'
+              case 'cropImage': return '#10b981'
+              case 'extractFrame': return '#f59e0b'
+              default: return '#333'
+            }
+          }}
+          nodeStrokeWidth={3}
+          zoomable
+          pannable
+        />
       </ReactFlow>
     </div>
   )

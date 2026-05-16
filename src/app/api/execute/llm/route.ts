@@ -14,6 +14,7 @@ const schema = z.object({
   imageUrls: z.array(z.string()).optional(),
   nodeId: z.string(),
   workflowId: z.string(),
+  workflowRunId: z.string().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
-  const { model, systemPrompt, userMessage, imageUrls, nodeId, workflowId } = parsed.data
+  const { model, systemPrompt, userMessage, imageUrls, nodeId, workflowRunId } = parsed.data
   
   // Check if there's already a running task for this node
   const existingRun = await prisma.nodeRun.findFirst({
@@ -44,32 +45,32 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Create WorkflowRun recor
-  // Get or create a default workflow for this user
-let workflow = await prisma.workflow.findFirst({
-  where: { userId }
-})
-
-if (!workflow) {
-  workflow = await prisma.workflow.create({
-    data: {
-      userId,
-      name: 'Untitled Workflow',
-      nodes: [],
-      edges: [],
-    }
-  })
-}
-
-// Create WorkflowRun record
-const workflowRun = await prisma.workflowRun.create({
-  data: {
-    workflowId: workflow.id,
-    userId,
-    status: 'running',
-    scope: 'single',
+  let workflowRun
+  if (workflowRunId) {
+    workflowRun = await prisma.workflowRun.findUnique({ where: { id: workflowRunId } })
   }
-})
+
+  if (!workflowRun) {
+    let workflow = await prisma.workflow.findFirst({ where: { userId } })
+    if (!workflow) {
+      workflow = await prisma.workflow.create({
+        data: {
+          userId,
+          name: 'Untitled Workflow',
+          nodes: [],
+          edges: [],
+        }
+      })
+    }
+    workflowRun = await prisma.workflowRun.create({
+      data: {
+        workflowId: workflow.id,
+        userId,
+        status: 'running',
+        scope: 'single',
+      }
+    })
+  }
 
   // Create NodeRun record
   const nodeRun = await prisma.nodeRun.create({

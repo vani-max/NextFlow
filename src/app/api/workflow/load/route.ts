@@ -15,18 +15,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const workflow = id 
-      ? await prisma.workflow.findUnique({ where: { id, userId } })
+    const workflow = id
+      ? await prisma.workflow.findFirst({ where: { id, userId } })
       : await prisma.workflow.findFirst({
           where: { userId },
           orderBy: { updatedAt: 'desc' }
         })
 
-    if (!workflow) {
-      return NextResponse.json({ workflow: null })
-    }
-
-    return NextResponse.json({ workflow })
+    return NextResponse.json({ workflow: workflow || null })
   } catch (error) {
     console.error('Error loading workflow:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

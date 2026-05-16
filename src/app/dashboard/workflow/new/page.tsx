@@ -12,7 +12,7 @@ export default function NewWorkflowPage() {
         <div className="flex flex-1 overflow-hidden">
           <LeftSidebar />
           <WorkflowCanvas loadEmpty={true} />
-          <RightSidebar />
+          <RightSidebar workflowId={undefined} />
         </div>
       </div>
     </ReactFlowProvider>

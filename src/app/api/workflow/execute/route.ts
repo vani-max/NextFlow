@@ -43,3 +43,29 @@ export async function POST(req: NextRequest) {
     workflowRunId: workflowRun.id,
   })
 }
+
+export async function PATCH(req: NextRequest) {
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await req.json()
+  const { workflowRunId, status } = body
+
+  if (!workflowRunId || !status) {
+    return NextResponse.json({ error: 'Missing workflowRunId or status' }, { status: 400 })
+  }
+
+  const run = await prisma.workflowRun.findFirst({
+    where: { id: workflowRunId, userId },
+  })
+  if (!run) {
+    return NextResponse.json({ error: 'Run not found' }, { status: 404 })
+  }
+
+  await prisma.workflowRun.update({
+    where: { id: workflowRunId },
+    data: { status },
+  })
+
+  return NextResponse.json({ success: true })
+}

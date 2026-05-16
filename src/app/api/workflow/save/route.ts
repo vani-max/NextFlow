@@ -17,28 +17,40 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(await req.json())
   if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
-  const { name, nodes, edges, workflowId } = parsed.data
+  try {
+    const { name, nodes, edges, workflowId } = parsed.data
+    console.log('Saving workflow:', name, nodes?.length, 'nodes')
 
-  let workflow
-  if (workflowId) {
-    workflow = await prisma.workflow.update({
-      where: { id: workflowId },
-      data: { name, nodes, edges }
-    })
-  } else {
-    // Find existing or create new
-    const existing = await prisma.workflow.findFirst({ where: { userId } })
-    if (existing) {
-      workflow = await prisma.workflow.update({
-        where: { id: existing.id },
-        data: { name, nodes, edges }
+    let workflow
+    if (workflowId) {
+      const existing = await prisma.workflow.findFirst({
+        where: { id: workflowId, userId },
       })
-    } else {
-      workflow = await prisma.workflow.create({
-        data: { userId, name, nodes, edges }
-      })
+      if (existing) {
+        workflow = await prisma.workflow.update({
+          where: { id: workflowId },
+          data: { name, nodes, edges },
+        })
+      }
     }
-  }
 
-  return NextResponse.json({ success: true, workflowId: workflow.id })
+    if (!workflow) {
+      const existing = await prisma.workflow.findFirst({ where: { userId } })
+      if (existing) {
+        workflow = await prisma.workflow.update({
+          where: { id: existing.id },
+          data: { name, nodes, edges },
+        })
+      } else {
+        workflow = await prisma.workflow.create({
+          data: { userId, name, nodes, edges },
+        })
+      }
+    }
+
+    return NextResponse.json({ success: true, workflowId: workflow.id })
+  } catch (err: any) {
+    console.error('Save DB error:', err.message)
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 }

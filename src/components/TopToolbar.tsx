@@ -4,18 +4,40 @@ import React, { useState, useEffect } from 'react'
 import { executeWorkflow } from '@/lib/executeWorkflow'
 import { useWorkflowStore } from '@/store/workflowStore'
 import { useReactFlow } from '@xyflow/react'
-import { Play, Download, Save, Upload, Sparkles } from 'lucide-react'
+import { Play, Download, Save, Upload, Sparkles, Undo2, Redo2 } from 'lucide-react'
 import { sampleWorkflow } from '@/lib/sampleWorkflow'
 
-export default function TopToolbar() {
+interface TopToolbarProps {
+  workflowId?: string
+}
+
+export default function TopToolbar({ workflowId: propWorkflowId }: TopToolbarProps = {}) {
   const [workflowName, setWorkflowName] = useState('Untitled Workflow')
   const [isSaving, setIsSaving] = useState(false)
-  const [workflowId, setWorkflowId] = useState<string | null>(null)
-  const { nodes, edges, setNodes, setEdges, setEdgeAnimation } = useWorkflowStore()
+  const [workflowId, setWorkflowId] = useState<string | null>(propWorkflowId ?? null)
+  const { nodes, edges, setNodes, setEdges, setEdgeAnimation, undo, redo, past, future } = useWorkflowStore()
   const { updateNodeData } = useReactFlow()
   const [isRunning, setIsRunning] = useState(false)
 
   const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (propWorkflowId && propWorkflowId !== 'sample') {
+      setWorkflowId(propWorkflowId)
+      localStorage.setItem('currentWorkflowId', propWorkflowId)
+      fetch(`/api/workflow/load?id=${propWorkflowId}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.workflow?.name) setWorkflowName(d.workflow.name)
+        })
+        .catch(() => {})
+    } else if (propWorkflowId === 'sample') {
+      setWorkflowName('NextFlow Sample Workflow')
+    } else {
+      setWorkflowId(null)
+      localStorage.removeItem('currentWorkflowId')
+    }
+  }, [propWorkflowId])
 
   const handleLoadSample = () => {
     setNodes(sampleWorkflow.nodes)
@@ -26,24 +48,40 @@ export default function TopToolbar() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
+      const { nodes, edges, activeWorkflowId, setActiveWorkflowId } = useWorkflowStore.getState()
+      console.log('Saving', nodes.length, 'nodes and', edges.length, 'edges')
+
       const res = await fetch('/api/workflow/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: workflowName,
+          name: workflowName || 'Untitled Workflow',
           nodes,
           edges,
-          workflowId,
+          workflowId: activeWorkflowId || undefined,
         })
       })
+
       const data = await res.json()
-      if (data.success) {
+      console.log('Save response:', data)
+
+      if (data.success && data.workflowId) {
         setWorkflowId(data.workflowId)
+        setActiveWorkflowId(data.workflowId)
+        // Update URL without page reload so refresh loads correct workflow
+        window.history.replaceState(
+          {},
+          '',
+          `/dashboard/workflow/${data.workflowId}`
+        )
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
+      } else if (!data.success) {
+        alert('Save failed: ' + JSON.stringify(data.error))
       }
-    } catch (err) {
-      console.error('Failed to save workflow:', err)
+    } catch (err: any) {
+      console.error('Save error:', err)
+      alert('Save failed: ' + err.message)
     } finally {
       setIsSaving(false)
     }
@@ -109,6 +147,24 @@ export default function TopToolbar() {
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          onClick={undo}
+          disabled={past.length === 0}
+          className="flex items-center gap-1.5 bg-[#1a1a1a] hover:bg-[#222] border border-[#333] text-white text-sm px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo2 size={14} />
+        </button>
+
+        <button
+          onClick={redo}
+          disabled={future.length === 0}
+          className="flex items-center gap-1.5 bg-[#1a1a1a] hover:bg-[#222] border border-[#333] text-white text-sm px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Redo (Ctrl+Shift+Z)"
+        >
+          <Redo2 size={14} />
+        </button>
+
         <button
           onClick={handleSave}
           disabled={isSaving}

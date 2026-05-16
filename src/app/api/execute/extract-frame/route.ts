@@ -12,6 +12,7 @@ const schema = z.object({
   timestamp: z.string().default('0'),
   nodeId: z.string(),
   workflowId: z.string(),
+  workflowRunId: z.string().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -21,18 +22,24 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(await req.json())
   if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
-  const { videoUrl, timestamp, nodeId } = parsed.data
+  const { videoUrl, timestamp, nodeId, workflowRunId } = parsed.data
 
-  let workflow = await prisma.workflow.findFirst({ where: { userId } })
-  if (!workflow) {
-    workflow = await prisma.workflow.create({
-      data: { userId, name: 'Untitled Workflow', nodes: [], edges: [] }
-    })
+  let workflowRun
+  if (workflowRunId) {
+    workflowRun = await prisma.workflowRun.findUnique({ where: { id: workflowRunId } })
   }
 
-  const workflowRun = await prisma.workflowRun.create({
-    data: { workflowId: workflow.id, userId, status: 'running', scope: 'single' }
-  })
+  if (!workflowRun) {
+    let workflow = await prisma.workflow.findFirst({ where: { userId } })
+    if (!workflow) {
+      workflow = await prisma.workflow.create({
+        data: { userId, name: 'Untitled Workflow', nodes: [], edges: [] }
+      })
+    }
+    workflowRun = await prisma.workflowRun.create({
+      data: { workflowId: workflow.id, userId, status: 'running', scope: 'single' }
+    })
+  }
 
 const handle = await tasks.trigger<typeof extractFrameTask>('extract-frame-task', {
   videoUrl, timestamp, nodeId, workflowRunId: workflowRun.id,

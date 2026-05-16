@@ -8,10 +8,10 @@ export default function LeftSidebar() {
   return (
     <div className={`relative flex flex-col bg-[#111111] border-r border-[#222] transition-all duration-300 z-20 h-full ${collapsed ? 'w-[52px]' : 'w-[220px]'}`}>
 
-      {/* Collapse toggle button */}
+      {/* Collapse toggle button — vertically centered */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-6 z-10 w-6 h-6 bg-[#222] border border-[#333] rounded-full flex items-center justify-center hover:bg-[#333] transition-colors"
+        className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-6 h-6 bg-[#222] border border-[#333] rounded-full flex items-center justify-center hover:bg-[#333] transition-colors"
       >
         {collapsed
           ? <ChevronRight size={12} className="text-white" />

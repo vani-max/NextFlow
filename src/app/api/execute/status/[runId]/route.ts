@@ -34,10 +34,15 @@ export async function GET(
           }
         }).catch(e => console.log('DB update error:', e.message))
 
-        await prisma.workflowRun.update({
-          where: { id: workflowRunId },
-          data: { status: 'success', duration: triggerRun.durationMs }
-        }).catch(e => console.log('DB update error:', e.message))
+        const workflowRun = await prisma.workflowRun.findUnique({
+          where: { id: workflowRunId }
+        })
+        if (workflowRun?.scope === 'single') {
+          await prisma.workflowRun.update({
+            where: { id: workflowRunId },
+            data: { status: 'success', duration: triggerRun.durationMs }
+          }).catch(e => console.log('DB update error:', e.message))
+        }
       }
 
       return NextResponse.json({ status: 'completed', output })

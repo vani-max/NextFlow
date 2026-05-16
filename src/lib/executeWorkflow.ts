@@ -1,5 +1,6 @@
 import { Node, Edge } from '@xyflow/react'
 import { getExecutionGroups } from './workflowExecutor'
+import { useWorkflowStore } from '@/store/workflowStore'
 
 interface ExecuteOptions {
   nodes: Node[]
@@ -12,17 +13,38 @@ interface ExecuteOptions {
 export async function executeWorkflow({
   nodes, edges, updateNodeData, setEdgeAnimation, selectedNodeIds
 }: ExecuteOptions) {
+  const WORKFLOW_TIMEOUT = 5 * 60 * 1000
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Workflow timeout — exceeded 5 minutes')), WORKFLOW_TIMEOUT)
+  )
 
-  // Filter nodes if partial execution
+  try {
+    await Promise.race([
+      runWorkflow({ nodes, edges, updateNodeData, setEdgeAnimation, selectedNodeIds }),
+      timeoutPromise
+    ])
+  } catch (err: any) {
+    console.error('Workflow failed or timed out:', err.message)
+    nodes.forEach(node => {
+      if (node.data?.status === 'running') {
+        updateNodeData(node.id, { status: 'error', output: 'Workflow timed out' })
+      }
+    })
+  }
+}
+
+async function runWorkflow({
+  nodes, edges, updateNodeData, setEdgeAnimation, selectedNodeIds
+}: ExecuteOptions) {
+  const { activeWorkflowId } = useWorkflowStore.getState()
+
   const targetNodes = selectedNodeIds
     ? nodes.filter(n => selectedNodeIds.includes(n.id))
     : nodes
 
-  // Get execution groups (parallel batches)
   const groups = getExecutionGroups(targetNodes, edges)
   console.log('Execution groups:', groups)
 
-  // Create workflow run
   const runRes = await fetch('/api/workflow/execute', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -30,35 +52,47 @@ export async function executeWorkflow({
       nodes, edges,
       scope: selectedNodeIds ? 'partial' : 'full',
       selectedNodeIds,
-      workflowId: 'default',
+      workflowId: activeWorkflowId || 'default',
     })
   })
   const { workflowRunId } = await runRes.json()
+  console.log('Created workflow run:', workflowRunId, 'for workflow:', activeWorkflowId)
 
-  // Initialize nodeDataMap with existing node data
   const nodeDataMap: Record<string, any> = {}
   for (const node of nodes) {
     nodeDataMap[node.id] = { ...node.data }
   }
 
-  // Execute groups sequentially, nodes within group in parallel
+  let hasError = false
+
   for (const group of groups) {
     console.log('Executing group:', group)
 
-    // Mark all nodes in group as running and animate incoming edges
     for (const nodeId of group) {
       updateNodeData(nodeId, { status: 'running' })
       setEdgeAnimation(nodeId, true)
     }
 
-    // Execute all nodes in group simultaneously
     await Promise.all(group.map(async (nodeId) => {
       await executeNode({
         nodeId, nodes, edges, updateNodeData, workflowRunId, nodeDataMap
       })
-      // After node completes, stop animating incoming edges
       setEdgeAnimation(nodeId, false)
+      if (nodeDataMap[nodeId]?.status === 'error') {
+        hasError = true
+      }
     }))
+  }
+
+  if (workflowRunId) {
+    await fetch('/api/workflow/execute', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowRunId,
+        status: hasError ? 'failed' : 'success',
+      })
+    })
   }
 }
 
@@ -72,10 +106,11 @@ async function executeNode({
   workflowRunId: string
   nodeDataMap: Record<string, any>
 }) {
+  const { activeWorkflowId } = useWorkflowStore.getState()
+
   const node = nodes.find(n => n.id === nodeId)
   if (!node) return
 
-  // Helper to get output from a connected node using nodeDataMap
   const getConnectedOutput = (targetHandle: string): string | null => {
     const edge = edges.find(e => e.target === nodeId && e.targetHandle === targetHandle)
     if (!edge) return null
@@ -95,8 +130,23 @@ async function executeNode({
       .filter(Boolean) as string[]
   }
 
-  // Text and Upload nodes don't need execution
   if (['text', 'uploadImage', 'uploadVideo'].includes(node.type!)) {
+    await fetch('/api/workflow/node-run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowRunId,
+        nodeId,
+        nodeType: node.type,
+        status: 'success',
+        duration: 100,
+        outputData: {
+          output: (node.data as any)?.text ||
+                  (node.data as any)?.imageUrl ||
+                  (node.data as any)?.videoUrl || 'ready'
+        }
+      })
+    })
     updateNodeData(nodeId, { status: 'success' })
     return
   }
@@ -120,14 +170,14 @@ async function executeNode({
             model: node.data?.model || 'llama-3.3-70b-versatile',
             systemPrompt, userMessage,
             imageUrls,
-            nodeId, workflowId: 'default'
+            nodeId, workflowId: activeWorkflowId || 'default',
+            workflowRunId,
           })
         })
         const resData = await res.json()
         const triggerHandle = resData.triggerHandle
         const output = await pollForResult(triggerHandle)
-        
-        // Update both the map and the UI
+
         nodeDataMap[nodeId] = { ...nodeDataMap[nodeId], output }
         updateNodeData(nodeId, { status: 'success', output })
         break
@@ -147,15 +197,29 @@ async function executeNode({
         const res = await fetch('/api/execute/crop', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageUrl, xPercent, yPercent, widthPercent, heightPercent, nodeId, workflowId: 'default' })
+          body: JSON.stringify({
+            imageUrl, xPercent, yPercent, widthPercent, heightPercent,
+            nodeId, workflowId: activeWorkflowId || 'default', workflowRunId,
+          })
         })
         const resText = await res.text()
         const resData = JSON.parse(resText)
         const triggerHandle = resData.triggerHandle
         const output = await pollForResult(triggerHandle)
-        
+
         nodeDataMap[nodeId] = { ...nodeDataMap[nodeId], outputImageUrl: output }
         updateNodeData(nodeId, { status: 'success', outputImageUrl: output })
+        await fetch('/api/workflow/node-run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workflowRunId,
+            nodeId,
+            nodeType: 'cropImage',
+            status: 'success',
+            outputData: { output },
+          })
+        })
         break
       }
 
@@ -170,30 +234,44 @@ async function executeNode({
         const res = await fetch('/api/execute/extract-frame', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoUrl, timestamp, nodeId, workflowId: 'default' })
+          body: JSON.stringify({
+            videoUrl, timestamp, nodeId, workflowId: activeWorkflowId || 'default', workflowRunId,
+          })
         })
         const resText = await res.text()
         const resData = JSON.parse(resText)
         const triggerHandle = resData.triggerHandle
         const output = await pollForResult(triggerHandle)
-        
+
         nodeDataMap[nodeId] = { ...nodeDataMap[nodeId], outputImageUrl: output }
         updateNodeData(nodeId, { status: 'success', outputImageUrl: output })
+        await fetch('/api/workflow/node-run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workflowRunId,
+            nodeId,
+            nodeType: 'extractFrame',
+            status: 'success',
+            outputData: { output },
+          })
+        })
         break
       }
     }
   } catch (err: any) {
     console.error('Node execution failed:', nodeId, err)
+    nodeDataMap[nodeId] = { ...nodeDataMap[nodeId], status: 'error' }
     updateNodeData(nodeId, { status: 'error', output: err.message })
   }
 }
 
-async function pollForResult(triggerHandle: string, maxAttempts = 60): Promise<string> {
+async function pollForResult(triggerHandle: string, maxAttempts = 36): Promise<string> {
   if (!triggerHandle) throw new Error('No trigger handle provided')
-  
+
   for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(r => setTimeout(r, 5000)) // increase to 5 seconds
-    
+    await new Promise(r => setTimeout(r, 5000))
+
     try {
       const res = await fetch(`/api/execute/status/${triggerHandle}`)
       const text = await res.text()
